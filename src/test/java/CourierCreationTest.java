@@ -1,159 +1,77 @@
-import com.google.gson.Gson;
-import io.restassured.RestAssured;
-import io.restassured.response.Response;
-import org.junit.Before;
+import io.qameta.allure.junit4.DisplayName;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.After;
 import org.junit.Test;
+import org.example.steps.CourierSteps;
 
-import static io.restassured.RestAssured.given;
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.*;
 
-public class CourierCreationTest {
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = "https://qa-scooter.praktikum-services.ru";
+public class CourierCreationTest extends BaseTest {
+
+    private CourierSteps courierSteps = new CourierSteps();
+    private String login;
+    private String password;
+    private String firstname;
+
+    @After
+    public void tearDown() {
+        Integer id = courierSteps.loginCourier(login, password).extract().path("id");
+        if (id != null) {
+            courierSteps.deleteCourier(id);
+        }
     }
 
+    @DisplayName("Успешное создание курьера при вводе валидных значений")
     @Test
     public void createCourierWithAllRequiredFieldsTest() {
-        Courier courier = new Courier("elmira", "1234", "segedina");
+        login = RandomStringUtils.randomAlphabetic(6);
+        password = RandomStringUtils.randomAlphabetic(6);
+        firstname = RandomStringUtils.randomAlphabetic(6);
 
-        Response creationResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(courier)
-                        .when()
-                        .post("/api/v1/courier");
-
-        creationResponse.then().assertThat().body("ok", equalTo(true))
-                .and()
-                .statusCode(201);
-
-        System.out.println(creationResponse.body().asString());
-
-        CourierLogin courierLogin = new CourierLogin("elmira", "1234");
-
-        Response loginResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(courierLogin)
-                        .when()
-                        .post("/api/v1/courier/login");
-
-        loginResponse.then().assertThat().body("id", isA(Integer.class))
-                .and()
-                .statusCode(200);
-
-        String IdString = loginResponse.body().asString();
-        Gson gson = new Gson();
-        CourierDelete id = gson.fromJson(IdString, CourierDelete.class);
-
-        Response deleteResponse = given()
-                .header("Content-type", "application/json")
-                .when()
-                .delete(String.format("/api/v1/courier/%s", id.getId()));
-
-        deleteResponse.then().assertThat().body("ok", equalTo(true))
-                .and()
-                .statusCode(200);
+        courierSteps
+                .createCourier(login, password, firstname)
+                .statusCode(SC_CREATED)
+                .body("ok", equalTo(true));
     }
 
+    @DisplayName("Ошибка при создании двух одинаковых курьеров")
     @Test
     public void createTwoIdenticalCouriersTest() {
-        Courier firstCourier = new Courier("elmira", "1234", "segedina");
+        login = RandomStringUtils.randomAlphabetic(6);
+        password = RandomStringUtils.randomAlphabetic(6);
+        firstname = RandomStringUtils.randomAlphabetic(6);
 
-        Response firstCourierCreationResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(firstCourier)
-                        .when()
-                        .post("/api/v1/courier");
+        courierSteps
+                .createCourier(login, password, firstname)
+                .statusCode(SC_CREATED)
+                .body("ok", equalTo(true));
 
-        firstCourierCreationResponse.then().assertThat().body("ok", equalTo(true))
-                .and()
-                .statusCode(201);
-
-        Courier secondCourier = new Courier("elmira", "1234", "segedina");
-
-        Response secondCourierCreationResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(secondCourier)
-                        .when()
-                        .post("/api/v1/courier");
-
-        secondCourierCreationResponse.then().assertThat().body("message", equalTo("Этот логин уже используется. Попробуйте другой."))
-                .and()
-                .statusCode(409);
-
-        System.out.println(secondCourierCreationResponse.body().asString());
-
-        CourierLogin courierLogin = new CourierLogin("elmira", "1234");
-
-        Response loginResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(courierLogin)
-                        .when()
-                        .post("/api/v1/courier/login");
-
-        loginResponse.then().assertThat().body("id", isA(Integer.class))
-                .and()
-                .statusCode(200);
-
-        String IdString = loginResponse.body().asString();
-        Gson gson = new Gson();
-        CourierDelete id = gson.fromJson(IdString, CourierDelete.class);
-
-        Response deleteResponse = given()
-                .header("Content-type", "application/json")
-                .when()
-                .delete(String.format("/api/v1/courier/%s", id.getId()));
-
-        deleteResponse.then().assertThat().body("ok", equalTo(true))
-                .and()
-                .statusCode(200);
+        courierSteps
+                .createCourier(login, password, firstname)
+                .statusCode(SC_CONFLICT)
+                .body("message", equalTo("Этот логин уже используется. Попробуйте другой."));
     }
 
+    @DisplayName("Ошибка при создании курьера без логина")
     @Test
-    public void createCourierWithoutLoginTest() {
-        CourierWithoutLogin courier = new CourierWithoutLogin("1234", "segedina");
+    public void createCourierWithoutLoginFieldTest() {
+        password = RandomStringUtils.randomAlphabetic(6);
 
-        Response creationResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(courier)
-                        .when()
-                        .post("/api/v1/courier");
-
-        creationResponse.then().assertThat().body("message", equalTo("Недостаточно данных для создания учетной записи"))
-                .and()
-                .statusCode(400);
-
-        System.out.println(creationResponse.body().asString());
+        courierSteps
+                .createCourier(null, password, null)
+                .statusCode(SC_BAD_REQUEST)
+                .body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
+    @DisplayName("Ошибка при создании курьера без пароля")
     @Test
-    public void createCourierWithoutPasswordTest() {
-        CourierWithoutPassword courier = new CourierWithoutPassword("elmira", "segedina");
+    public void createCourierWithoutPasswordFieldTest() {
+        login = RandomStringUtils.randomAlphabetic(6);
 
-        Response creationResponse =
-                given()
-                        .header("Content-type", "application/json")
-                        .and()
-                        .body(courier)
-                        .when()
-                        .post("/api/v1/courier");
-
-        creationResponse.then().assertThat().body("message", equalTo("Недостаточно данных для создания учетной записи"))
-                .and()
-                .statusCode(400);
-
-        System.out.println(creationResponse.body().asString());
+        courierSteps
+                .createCourier(login, null, null)
+                .statusCode(SC_BAD_REQUEST)
+                .body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 }
