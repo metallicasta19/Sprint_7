@@ -1,3 +1,4 @@
+import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
@@ -58,6 +59,7 @@ public class OrderCreationTest extends BaseTest {
     }
 
     @DisplayName("Успешное создание заказа")
+    @Description("Успешное создание заказа - возвращает 201 Created")
     @Test
     public void checkOrderCreationResponseTest() {
         orderResponse = orderSteps.createOrder(firstName, lastName, address, metroStation, phone, rentTime, deliveryDate, comment, color);

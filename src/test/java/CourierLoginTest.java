@@ -1,4 +1,7 @@
+import io.qameta.allure.Description;
+import io.qameta.allure.Issue;
 import io.qameta.allure.junit4.DisplayName;
+import io.restassured.response.Response;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -19,16 +22,21 @@ public class CourierLoginTest extends BaseTest {
         login = RandomStringUtils.randomAlphabetic(6);
         password = RandomStringUtils.randomAlphabetic(6);
 
-        courierSteps.createCourier(login, password, null);
+        courierSteps.createCourier(login, password);
     }
 
     @After
     public void tearDown() {
-        Integer id = courierSteps.loginCourier(login, password).extract().path("id");
-        courierSteps.deleteCourier(id);
+        Response loginResponse = courierSteps.loginCourier(login, password).extract().response();
+
+        if (loginResponse.getStatusCode() == SC_OK) {
+            Integer id = loginResponse.path("id");
+            courierSteps.deleteCourier(id);
+        }
     }
 
     @DisplayName("Успешная авторизация курьера при вводе валидного логина и пароля")
+    @Description("Успешная авторизация курьера при вводе валидного логина и пароля - возвращает 200 OK")
     @Test
     public void loginWithAllRequiredFieldsTest() {
         courierSteps
@@ -38,6 +46,7 @@ public class CourierLoginTest extends BaseTest {
     }
 
     @DisplayName("Ошибка в авторизации курьера при вводе неверного логина")
+    @Description("Ошибка в авторизации курьера при вводе неверного логина - возвращает 404 Not Found")
     @Test
     public void loginWithInvalidLoginTest() {
         String invalidLogin = RandomStringUtils.randomAlphabetic(6);
@@ -49,6 +58,7 @@ public class CourierLoginTest extends BaseTest {
     }
 
     @DisplayName("Ошибка в авторизации курьера при вводе неверного пароля")
+    @Description("Ошибка в авторизации курьера при вводе неверного пароля - возвращает 404 Not Found")
     @Test
     public void loginWithInvalidPasswordTest() {
         String invalidPassword = RandomStringUtils.randomAlphabetic(6);
@@ -60,6 +70,7 @@ public class CourierLoginTest extends BaseTest {
     }
 
     @DisplayName("Ошибка в авторизации курьера без ввода логина")
+    @Description("Ошибка в авторизации курьера без ввода логина - возвращает 400 Bad Request")
     @Test
     public void loginWithoutLoginFieldTest() {
         courierSteps
@@ -69,6 +80,8 @@ public class CourierLoginTest extends BaseTest {
     }
 
     @DisplayName("Ошибка в авторизации курьера без ввода пароля")
+    @Description("Ошибка в авторизации курьера без ввода пароля - возвращает 400 Bad Request")
+    @Issue("ES15-66")
     @Test
     public void courierLoginWithoutPasswordFieldTest() {
         courierSteps
